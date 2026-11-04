@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { query, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   isProductAvailable,
@@ -194,17 +194,43 @@ export const getCategoryBySlug = query({
       .withIndex("by_slug", (q) => q.eq("slug", slug))
       .first();
     if (!category || !category.published) return null;
+    const imageUrl = category.imageStorageId
+      ? await ctx.storage.getUrl(category.imageStorageId)
+      : null;
     return {
       _id: category._id,
       name: category.name,
       slug: category.slug,
       description: category.description ?? null,
-      imageUrl: category.imageStorageId
-        ? await ctx.storage.getUrl(category.imageStorageId)
-        : null,
+      imageUrl,
+      // For link previews: the category's own image, else the first photo of
+      // one of its products (featured first, then newest).
+      shareImage: imageUrl
+        ? { url: imageUrl, alt: category.name }
+        : await firstCategoryProductImage(ctx, category._id),
     };
   },
 });
+
+async function firstCategoryProductImage(
+  ctx: QueryCtx,
+  categoryId: Id<"categories">,
+): Promise<{ url: string; alt: string } | null> {
+  const products = (
+    await ctx.db
+      .query("products")
+      .withIndex("by_category", (q) => q.eq("categoryId", categoryId))
+      .collect()
+  ).filter((p) => p.published && p.images.length > 0);
+  products.sort(
+    (a, b) => Number(b.featured) - Number(a.featured) || b.createdAt - a.createdAt,
+  );
+  for (const product of products) {
+    const [image] = await resolveImages(ctx, product.images, 1);
+    if (image) return { url: image.url, alt: image.alt || product.name };
+  }
+  return null;
+}
 
 /** Minimal data for sitemap.xml. Published content only. */
 export const sitemapEntries = query({

@@ -27,7 +27,13 @@ export async function generateMetadata({
       title: category.name,
       description,
       url: `/categories/${category.slug}`,
-      images: category.imageUrl ? [{ url: category.imageUrl }] : undefined,
+      images: category.shareImage ? [category.shareImage] : undefined,
+    },
+    twitter: {
+      card: category.shareImage ? "summary_large_image" : "summary",
+      title: category.name,
+      description,
+      images: category.shareImage ? [category.shareImage.url] : undefined,
     },
   };
 }
