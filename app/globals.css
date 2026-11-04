@@ -1,26 +1,250 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-fraunces), "Fraunces", Georgia, serif;
+  --font-serif: var(--font-fraunces), "Fraunces", Georgia, serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* Brand */
+  --color-ivory: #f3ebdd;
+  --color-tan: #b58a5a;
+  --color-espresso: #30271f;
+  --color-taupe: #8c806f;
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-success: var(--success);
+  --color-surface: var(--surface);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --ease-luxe: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --radius: 0.5rem;
+
+  --background: #f3ebdd;
+  --foreground: #30271f;
+  --surface: #ede3d2;
+  --card: #f8f2e8;
+  --card-foreground: #30271f;
+  --popover: #faf6ef;
+  --popover-foreground: #30271f;
+  --primary: #30271f;
+  --primary-foreground: #f3ebdd;
+  --secondary: #e7dbc7;
+  --secondary-foreground: #30271f;
+  --muted: #e9dfce;
+  /* Darker than brand taupe so body text clears WCAG AA on ivory. */
+  --muted-foreground: #66594a;
+  --accent: #e4d3b9;
+  --accent-foreground: #30271f;
+  --brand: #86592c;
+  --brand-foreground: #fbf7f0;
+  --success: #3f6b3a;
+  --destructive: #a3392b;
+  --border: #dacbb3;
+  --input: #cdbb9f;
+  --ring: #b58a5a;
+  --chart-1: #b58a5a;
+  --chart-2: #30271f;
+  --chart-3: #8c806f;
+  --chart-4: #d9b98c;
+  --chart-5: #5c4a3a;
+  --sidebar: #ece2d1;
+  --sidebar-foreground: #30271f;
+  --sidebar-primary: #30271f;
+  --sidebar-primary-foreground: #f3ebdd;
+  --sidebar-accent: #e1d2ba;
+  --sidebar-accent-foreground: #30271f;
+  --sidebar-border: #d8c8ae;
+  --sidebar-ring: #b58a5a;
+}
+
+.dark {
+  --background: #1c1611;
+  --foreground: #f3ebdd;
+  --surface: #221b15;
+  --card: #261e18;
+  --card-foreground: #f3ebdd;
+  --popover: #2a221b;
+  --popover-foreground: #f3ebdd;
+  --primary: #f3ebdd;
+  --primary-foreground: #30271f;
+  --secondary: #322920;
+  --secondary-foreground: #f3ebdd;
+  --muted: #2e251e;
+  --muted-foreground: #bfb19d;
+  --accent: #3a2f25;
+  --accent-foreground: #f3ebdd;
+  --brand: #cfa271;
+  --brand-foreground: #1c1611;
+  --success: #8fbf86;
+  --destructive: #e07a6a;
+  --border: #3b3027;
+  --input: #4a3d31;
+  --ring: #cfa271;
+  --chart-1: #cfa271;
+  --chart-2: #f3ebdd;
+  --chart-3: #8c806f;
+  --chart-4: #e3c79f;
+  --chart-5: #7a6450;
+  --sidebar: #201913;
+  --sidebar-foreground: #f3ebdd;
+  --sidebar-primary: #cfa271;
+  --sidebar-primary-foreground: #1c1611;
+  --sidebar-accent: #2e251e;
+  --sidebar-accent-foreground: #f3ebdd;
+  --sidebar-border: #33291f;
+  --sidebar-ring: #cfa271;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "kern";
+    text-rendering: optimizeLegibility;
+  }
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-heading);
+    font-weight: 500;
+    font-optical-sizing: auto;
+    letter-spacing: -0.015em;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--color-tan) 35%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .eyebrow {
+    @apply text-[0.7rem] font-medium tracking-[0.28em] text-brand uppercase;
+  }
+  /* Subtle leather-grain texture for placeholders and dark panels. */
+  .grain {
+    background-image:
+      radial-gradient(
+        circle at 20% 15%,
+        color-mix(in oklab, var(--color-tan) 22%, transparent),
+        transparent 55%
+      ),
+      radial-gradient(
+        circle at 85% 90%,
+        color-mix(in oklab, var(--color-espresso) 14%, transparent),
+        transparent 50%
+      ),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.19  0 0 0 0 0.15  0 0 0 0 0.12  0 0 0 .07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+  .hairline {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, var(--color-tan) 70%, transparent),
+      transparent
+    );
+    height: 1px;
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Scroll-linked fade-up (components/motion/reveal.tsx). Elements already in
+   view on load sit at the end of their range, so they render fully visible. */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(var(--reveal-y, 18px));
+  }
+}
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal {
+      animation: reveal-up linear both;
+      animation-timeline: view();
+      animation-range: entry var(--reveal-offset, 0%) entry calc(70% + var(--reveal-offset, 0%));
+    }
+  }
+}
+
+/* Hero slideshow timer bar (components/store/home/hero-visual.tsx). */
+@keyframes hero-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
