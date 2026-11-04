@@ -35,7 +35,7 @@ export function HeroVisual({ initialImageUrls }: { initialImageUrls: string[] })
       : STOCK_HERO_IMAGES;
 
   return (
-    <div className="relative aspect-16/10 overflow-hidden rounded-lg bg-espresso md:aspect-4/5 lg:aspect-auto lg:h-full">
+    <div className="relative aspect-16/10 w-full overflow-hidden rounded-lg bg-espresso md:aspect-5/6 lg:aspect-auto lg:h-[88%]">
       <Slideshow key={slides.map((s) => s.url).join("|")} slides={slides} />
       <HeroBadge />
     </div>

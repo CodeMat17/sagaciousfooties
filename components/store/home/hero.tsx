@@ -45,7 +45,7 @@ export async function Hero() {
             ))}
           </dl>
         </div>
-        <div className="order-1 md:order-2 lg:h-full">
+        <div className="order-1 md:order-2 lg:flex lg:h-full lg:items-center">
           <HeroVisual initialImageUrls={initialImageUrls} />
         </div>
       </div>
