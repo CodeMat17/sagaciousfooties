@@ -3,7 +3,6 @@
 import { useMutation } from "convex/react";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
 import { useAdminToken } from "./admin-session";
 
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/avif"];
@@ -44,35 +43,52 @@ async function prepare(file: File): Promise<Blob> {
   return blob ?? file;
 }
 
+/**
+ * Uploads straight from the browser to Cloudinary using parameters signed by
+ * Convex. Resolves to the Cloudinary public ID, which is what gets persisted.
+ */
 export function useImageUpload() {
   const token = useAdminToken();
-  const generateUploadUrl = useMutation(api.admin.files.generateUploadUrl);
+  const signUpload = useMutation(api.admin.files.signUpload);
   const [uploading, setUploading] = useState(0);
 
-  async function upload(file: File): Promise<Id<"_storage">> {
+  async function upload(file: File): Promise<string> {
     setUploading((n) => n + 1);
     try {
       const blob = await prepare(file);
       if (blob.size > MAX_UPLOAD_BYTES) {
         throw new Error("That image is still over 8 MB after compression.");
       }
-      const url = await generateUploadUrl({ sessionToken: token });
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": blob.type || file.type },
-        body: blob,
-      });
-      if (!response.ok) throw new Error("Upload failed. Please try again.");
-      const json: unknown = await response.json();
+      const signed = await signUpload({ sessionToken: token });
+      const form = new FormData();
+      form.append("file", blob);
+      form.append("api_key", signed.apiKey);
+      form.append("timestamp", String(signed.timestamp));
+      form.append("signature", signed.signature);
+      form.append("folder", signed.folder);
+      form.append("allowed_formats", signed.allowed_formats);
+      const response = await fetch(signed.uploadUrl, { method: "POST", body: form });
+      const json: unknown = await response.json().catch(() => null);
       if (
+        !response.ok ||
         typeof json !== "object" ||
         json === null ||
-        !("storageId" in json) ||
-        typeof json.storageId !== "string"
+        !("public_id" in json) ||
+        typeof json.public_id !== "string"
       ) {
-        throw new Error("Upload failed. Please try again.");
+        const message =
+          typeof json === "object" &&
+          json !== null &&
+          "error" in json &&
+          typeof json.error === "object" &&
+          json.error !== null &&
+          "message" in json.error &&
+          typeof json.error.message === "string"
+            ? json.error.message
+            : null;
+        throw new Error(message ? `Upload failed: ${message}` : "Upload failed. Please try again.");
       }
-      return json.storageId as Id<"_storage">;
+      return json.public_id;
     } finally {
       setUploading((n) => n - 1);
     }

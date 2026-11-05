@@ -152,10 +152,11 @@ function CategoryDialog({ category, onClose }: { category: Category | null; onCl
   const file = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(category?.name ?? "");
   const [slug, setSlug] = useState(category?.slug ?? "");
-  const [slugEdited, setSlugEdited] = useState(Boolean(category));
+  // Generated from the name for new categories; frozen once saved so links keep working.
+  const slugLocked = Boolean(category);
   const [description, setDescription] = useState(category?.description ?? "");
   const [published, setPublished] = useState(category?.published ?? true);
-  const [imageStorageId, setImageStorageId] = useState<Id<"_storage"> | null>(category?.imageStorageId ?? null);
+  const [imagePublicId, setImagePublicId] = useState<string | null>(category?.imagePublicId ?? null);
   const [preview, setPreview] = useState<string | null>(category?.imageUrl ?? null);
   const [saving, setSaving] = useState(false);
 
@@ -167,7 +168,7 @@ function CategoryDialog({ category, onClose }: { category: Category | null; onCl
       slug: slugify(slug),
       description: description || undefined,
       published,
-      imageStorageId: imageStorageId ?? undefined,
+      imagePublicId: imagePublicId ?? undefined,
     };
     try {
       if (category) await update({ ...payload, id: category._id });
@@ -205,23 +206,22 @@ function CategoryDialog({ category, onClose }: { category: Category | null; onCl
               required
               onChange={(e) => {
                 setName(e.target.value);
-                if (!slugEdited) setSlug(slugify(e.target.value));
+                if (!slugLocked) setSlug(slugify(e.target.value));
               }}
               className="h-10"
             />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cat-slug">Slug</Label>
-            <Input
+            <output
               id="cat-slug"
-              value={slug}
-              onChange={(e) => {
-                setSlugEdited(true);
-                setSlug(e.target.value);
-              }}
-              onBlur={() => setSlug(slugify(slug))}
-              className="h-10 font-mono text-sm"
-            />
+              className="flex h-10 w-full select-all items-center truncate rounded-lg border border-dashed border-input bg-muted/60 px-2.5 font-mono text-sm text-muted-foreground"
+            >
+              {slug || "generated-from-name"}
+            </output>
+            <p className="text-xs text-muted-foreground">
+              {slugLocked ? "Fixed after creation so links keep working." : "Generated from the name."}
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cat-desc">Description</Label>
@@ -237,7 +237,7 @@ function CategoryDialog({ category, onClose }: { category: Category | null; onCl
                 {preview ? "Replace image" : "Add image"}
               </Button>
               {preview && (
-                <Button type="button" variant="ghost" onClick={() => { setImageStorageId(null); setPreview(null); }}>
+                <Button type="button" variant="ghost" onClick={() => { setImagePublicId(null); setPreview(null); }}>
                   Remove
                 </Button>
               )}
@@ -253,7 +253,7 @@ function CategoryDialog({ category, onClose }: { category: Category | null; onCl
                 const f = e.target.files?.[0];
                 if (!f) return;
                 try {
-                  setImageStorageId(await upload(f));
+                  setImagePublicId(await upload(f));
                   setPreview(URL.createObjectURL(f));
                 } catch (error) {
                   toast.error(error instanceof Error ? error.message : "Upload failed");

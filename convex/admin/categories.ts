@@ -2,7 +2,11 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import { requireAdmin } from "../lib/authorization";
 import {
-  assertImageUpload,
+  assertPublicId,
+  cloudinaryUrl,
+  scheduleImageDeletion,
+} from "../lib/cloudinary";
+import {
   assertSlug,
   cleanOptional,
   cleanText,
@@ -28,10 +32,8 @@ export const list = query({
         description: c.description ?? "",
         published: c.published,
         sortOrder: c.sortOrder,
-        imageStorageId: c.imageStorageId ?? null,
-        imageUrl: c.imageStorageId
-          ? await ctx.storage.getUrl(c.imageStorageId)
-          : null,
+        imagePublicId: c.imagePublicId ?? null,
+        imageUrl: c.imagePublicId ? cloudinaryUrl(c.imagePublicId) : null,
         productCount: products.filter((p) => p.categoryId === c._id).length,
         updatedAt: c.updatedAt,
       })),
@@ -43,7 +45,7 @@ const fields = {
   name: v.string(),
   slug: v.string(),
   description: v.optional(v.string()),
-  imageStorageId: v.optional(v.id("_storage")),
+  imagePublicId: v.optional(v.string()),
   published: v.boolean(),
 };
 
@@ -53,7 +55,7 @@ export const create = mutation({
     await requireAdmin(ctx, sessionToken);
     const slug = assertSlug(input.slug);
     await ensureUniqueCategorySlug(ctx, slug);
-    if (input.imageStorageId) await assertImageUpload(ctx, input.imageStorageId);
+    if (input.imagePublicId) assertPublicId(input.imagePublicId);
     const last = await ctx.db
       .query("categories")
       .withIndex("by_sort_order")
@@ -64,7 +66,7 @@ export const create = mutation({
       name: cleanText(input.name, "Category name", { min: 2, max: 80 }),
       slug,
       description: cleanOptional(input.description, "Description", 500),
-      imageStorageId: input.imageStorageId,
+      imagePublicId: input.imagePublicId,
       published: input.published,
       sortOrder: (last?.sortOrder ?? 0) + 1,
       createdAt: now,
@@ -81,20 +83,18 @@ export const update = mutation({
     if (!existing) throw new ConvexError("This category no longer exists.");
     const slug = assertSlug(input.slug);
     await ensureUniqueCategorySlug(ctx, slug, id);
-    if (input.imageStorageId && input.imageStorageId !== existing.imageStorageId) {
-      await assertImageUpload(ctx, input.imageStorageId);
-    }
+    if (input.imagePublicId) assertPublicId(input.imagePublicId);
     if (
-      existing.imageStorageId &&
-      existing.imageStorageId !== input.imageStorageId
+      existing.imagePublicId &&
+      existing.imagePublicId !== input.imagePublicId
     ) {
-      await ctx.storage.delete(existing.imageStorageId);
+      await scheduleImageDeletion(ctx, [existing.imagePublicId]);
     }
     await ctx.db.patch(id, {
       name: cleanText(input.name, "Category name", { min: 2, max: 80 }),
       slug,
       description: cleanOptional(input.description, "Description", 500),
-      imageStorageId: input.imageStorageId,
+      imagePublicId: input.imagePublicId,
       published: input.published,
       updatedAt: Date.now(),
     });
@@ -158,7 +158,9 @@ export const remove = mutation({
         await ctx.db.patch(p._id, { categoryId: reassignTo, updatedAt: now });
       }
     }
-    if (category.imageStorageId) await ctx.storage.delete(category.imageStorageId);
+    if (category.imagePublicId) {
+      await scheduleImageDeletion(ctx, [category.imagePublicId]);
+    }
     await ctx.db.delete(id);
   },
 });

@@ -15,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
 
 type Settings = FunctionReturnType<typeof api.admin.settings.get>;
 type HeroImage = Settings["heroImages"][number];
@@ -76,7 +75,7 @@ function SettingsForm({ initial }: { initial: Settings }) {
     seoTitle: initial.seoTitle,
     seoDescription: initial.seoDescription,
   });
-  const [logo, setLogo] = useState({ id: initial.logoStorageId, url: initial.logoUrl });
+  const [logo, setLogo] = useState({ id: initial.logoPublicId, url: initial.logoUrl });
   const [heroImages, setHeroImages] = useState<HeroImage[]>(initial.heroImages);
   const [saving, setSaving] = useState(false);
 
@@ -104,8 +103,8 @@ function SettingsForm({ initial }: { initial: Settings }) {
         deliveryInformation: opt("deliveryInformation"),
         seoTitle: opt("seoTitle"),
         seoDescription: opt("seoDescription"),
-        logoStorageId: logo.id ?? undefined,
-        heroImageStorageIds: heroImages.map((i) => i.storageId),
+        logoPublicId: logo.id ?? undefined,
+        heroImagePublicIds: heroImages.map((i) => i.publicId),
       });
       toast.success("Settings saved — live on the store.");
     } catch (error) {
@@ -201,10 +200,10 @@ function HeroGalleryField({
     let added = 0;
     for (const file of list) {
       try {
-        const storageId = await upload(file);
-        uploadedThisSession.current.add(storageId);
+        const publicId = await upload(file);
+        uploadedThisSession.current.add(publicId);
         const url = URL.createObjectURL(file);
-        onChange((current) => [...current, { storageId, url }]);
+        onChange((current) => [...current, { publicId, url }]);
         added++;
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Upload failed");
@@ -225,8 +224,8 @@ function HeroGalleryField({
   function remove(index: number) {
     const image = images[index];
     onChange(images.filter((_, i) => i !== index));
-    if (uploadedThisSession.current.has(image.storageId)) {
-      void discard({ sessionToken: token, storageId: image.storageId });
+    if (uploadedThisSession.current.has(image.publicId)) {
+      void discard({ sessionToken: token, publicId: image.publicId });
     }
   }
 
@@ -241,7 +240,7 @@ function HeroGalleryField({
       </div>
       <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5">
         {images.map((image, index) => (
-          <li key={image.storageId} className="overflow-hidden rounded-md border bg-background">
+          <li key={image.publicId} className="overflow-hidden rounded-md border bg-background">
             <div className="relative aspect-4/5 bg-muted">
               {image.url && (
                 <Image src={image.url} alt="" fill sizes="160px" className="object-cover" unoptimized={image.url.startsWith("blob:")} />
@@ -310,8 +309,8 @@ function ImageField({
 }: {
   label: string;
   hint: string;
-  value: { id: Id<"_storage"> | null; url: string | null };
-  onChange: (v: { id: Id<"_storage"> | null; url: string | null }) => void;
+  value: { id: string | null; url: string | null };
+  onChange: (v: { id: string | null; url: string | null }) => void;
   aspect: string;
 }) {
   const { upload, uploading } = useImageUpload();

@@ -10,6 +10,11 @@ export async function sha256Hex(value: string): Promise<string> {
   return toHex(await crypto.subtle.digest("SHA-256", encoder.encode(value)));
 }
 
+/** SHA-1 is what Cloudinary's API signatures use by default. */
+export async function sha1Hex(value: string): Promise<string> {
+  return toHex(await crypto.subtle.digest("SHA-1", encoder.encode(value)));
+}
+
 /** Length-independent comparison of two hex strings. */
 export function constantTimeEqual(a: string, b: string): boolean {
   const length = Math.max(a.length, b.length);

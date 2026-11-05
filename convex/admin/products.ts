@@ -4,7 +4,11 @@ import type { Doc } from "../_generated/dataModel";
 import { requireAdmin } from "../lib/authorization";
 import { isProductAvailable, resolveImages } from "../lib/present";
 import {
-  assertImageUpload,
+  assertPublicId,
+  cloudinaryUrl,
+  scheduleImageDeletion,
+} from "../lib/cloudinary";
+import {
   assertPrice,
   assertSize,
   assertSlug,
@@ -39,7 +43,7 @@ export const list = query({
         audience: p.audience,
         categoryId: p.categoryId,
         categoryName: categoryNames.get(p.categoryId) ?? "Uncategorised",
-        image: (await resolveImages(ctx, p.images, 1))[0] ?? null,
+        image: resolveImages(p.images, 1)[0] ?? null,
         sizes: p.sizes,
         available: isProductAvailable(p),
         featured: p.featured,
@@ -57,13 +61,11 @@ export const get = query({
     await requireAdmin(ctx, sessionToken);
     const product = await ctx.db.get(id);
     if (!product) return null;
-    const images = await Promise.all(
-      product.images.map(async (image) => ({
-        storageId: image.storageId,
-        alt: image.alt,
-        url: await ctx.storage.getUrl(image.storageId),
-      })),
-    );
+    const images = product.images.map((image) => ({
+      publicId: image.publicId,
+      alt: image.alt,
+      url: cloudinaryUrl(image.publicId),
+    }));
     return { ...product, images };
   },
 });
@@ -86,7 +88,7 @@ export const dashboard = query({
         price: p.price,
         published: p.published,
         available: isProductAvailable(p),
-        image: (await resolveImages(ctx, p.images, 1))[0] ?? null,
+        image: resolveImages(p.images, 1)[0] ?? null,
         updatedAt: p.updatedAt,
       })),
     );
@@ -156,7 +158,7 @@ function cleanProduct(input: ProductInput) {
     price: assertPrice(input.price),
     sizes: sizes.sort((a, b) => a.size - b.size),
     images: input.images.map((img) => ({
-      storageId: img.storageId,
+      publicId: assertPublicId(img.publicId),
       alt: img.alt.trim().slice(0, 200),
     })),
   };
@@ -170,9 +172,6 @@ export const create = mutation({
     await ensureUniqueProductSlug(ctx, clean.slug);
     if (!(await ctx.db.get(input.categoryId))) {
       throw new ConvexError("Choose a valid category.");
-    }
-    for (const image of clean.images) {
-      await assertImageUpload(ctx, image.storageId);
     }
     if (input.published && clean.sizes.length === 0) {
       throw new ConvexError("Add at least one size before publishing.");
@@ -202,20 +201,15 @@ export const update = mutation({
     if (!(await ctx.db.get(input.categoryId))) {
       throw new ConvexError("Choose a valid category.");
     }
-    const previous = new Set(existing.images.map((i) => i.storageId));
-    for (const image of clean.images) {
-      if (!previous.has(image.storageId)) {
-        await assertImageUpload(ctx, image.storageId);
-      }
-    }
     if (input.published && clean.sizes.length === 0) {
       throw new ConvexError("Add at least one size before publishing.");
     }
-    // Delete files that were removed from the product.
-    const kept = new Set(clean.images.map((i) => i.storageId));
-    for (const image of existing.images) {
-      if (!kept.has(image.storageId)) await ctx.storage.delete(image.storageId);
-    }
+    // Delete images that were removed from the product.
+    const kept = new Set(clean.images.map((i) => i.publicId));
+    await scheduleImageDeletion(
+      ctx,
+      existing.images.map((i) => i.publicId).filter((id) => !kept.has(id)),
+    );
     await ctx.db.patch(id, {
       ...clean,
       categoryId: input.categoryId,
@@ -279,9 +273,7 @@ export const remove = mutation({
     await requireAdmin(ctx, sessionToken);
     const product = await ctx.db.get(id);
     if (!product) return;
-    for (const image of product.images) {
-      await ctx.storage.delete(image.storageId);
-    }
+    await scheduleImageDeletion(ctx, product.images.map((i) => i.publicId));
     await ctx.db.delete(id);
   },
 });

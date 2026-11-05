@@ -21,7 +21,8 @@ export const enquiryStatusValidator = v.union(
 );
 
 export const productImageValidator = v.object({
-  storageId: v.id("_storage"),
+  /** Cloudinary public ID. */
+  publicId: v.string(),
   alt: v.string(),
 });
 
@@ -66,7 +67,8 @@ export default defineSchema({
     name: v.string(),
     slug: v.string(),
     description: v.optional(v.string()),
-    imageStorageId: v.optional(v.id("_storage")),
+    /** Cloudinary public ID. */
+    imagePublicId: v.optional(v.string()),
     sortOrder: v.number(),
     published: v.boolean(),
     createdAt: v.number(),
@@ -95,11 +97,10 @@ export default defineSchema({
     contactEmail: v.optional(v.string()),
     address: v.optional(v.string()),
     openingHours: v.optional(v.string()),
-    logoStorageId: v.optional(v.id("_storage")),
-    /** Legacy single hero photo; read as a one-item gallery, cleared on next save. */
-    heroImageStorageId: v.optional(v.id("_storage")),
-    /** Homepage hero slideshow, in display order (max HERO_IMAGE_LIMIT). */
-    heroImageStorageIds: v.optional(v.array(v.id("_storage"))),
+    /** Cloudinary public ID. */
+    logoPublicId: v.optional(v.string()),
+    /** Homepage hero slideshow (Cloudinary public IDs), in display order (max HERO_IMAGE_LIMIT). */
+    heroImagePublicIds: v.optional(v.array(v.string())),
     instagramUrl: v.optional(v.string()),
     facebookUrl: v.optional(v.string()),
     tiktokUrl: v.optional(v.string()),

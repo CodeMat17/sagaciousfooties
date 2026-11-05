@@ -9,7 +9,7 @@ prefilled order to WhatsApp (`2347044663337`). The owner manages everything at
 `/admin` and changes appear on the store instantly — no redeploys.
 
 **Stack:** Next.js 16 (App Router, Cache Components) · TypeScript (strict) ·
-Tailwind CSS v4 · shadcn/ui (Base UI) · Convex (data, storage, live queries) ·
+Tailwind CSS v4 · shadcn/ui (Base UI) · Convex (data, live queries) · Cloudinary (photos) ·
 Motion · Sonner · Day.js.
 
 ## How it works
@@ -50,6 +50,10 @@ One-time Convex setup:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 npx convex env set ADMIN_SERVER_SECRET <secret>
 npx convex env set ADMIN_PIN 123456          # choose your own 6–12 digits
+# photos: Cloudinary dashboard → Settings → API Keys
+npx convex env set CLOUDINARY_CLOUD_NAME <cloud name>
+npx convex env set CLOUDINARY_API_KEY <api key>
+npx convex env set CLOUDINARY_API_SECRET <api secret>
 npx convex run seed:run                      # categories, settings + sample products
 ```
 
@@ -61,8 +65,8 @@ no photos; edit or delete them from **Admin → Products**.
 1. Create a production Convex deployment: `npx convex deploy` (or let Vercel run
    it — set the build command to `npx convex deploy --cmd 'yarn build'` and add
    `CONVEX_DEPLOY_KEY` from the Convex dashboard).
-2. On the **production** Convex deployment set `ADMIN_SERVER_SECRET` and
-   `ADMIN_PIN` (`npx convex env set --prod …`), then `npx convex run --prod seed:run`.
+2. On the **production** Convex deployment set `ADMIN_SERVER_SECRET`,
+   `ADMIN_PIN` and the three `CLOUDINARY_*` variables (`npx convex env set --prod …`), then `npx convex run --prod seed:run`.
 3. In Vercel → Environment Variables set `NEXT_PUBLIC_APP_URL`
    (e.g. `https://sagaciousfooties.com`), `ADMIN_SERVER_SECRET`, and (if not
    using the deploy command) `NEXT_PUBLIC_CONVEX_URL`.

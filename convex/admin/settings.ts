@@ -3,7 +3,11 @@ import { mutation, query } from "../_generated/server";
 import { requireAdmin } from "../lib/authorization";
 import { DEFAULT_SETTINGS, HERO_IMAGE_LIMIT, heroImageIds } from "../lib/present";
 import {
-  assertImageUpload,
+  assertPublicId,
+  cloudinaryUrl,
+  scheduleImageDeletion,
+} from "../lib/cloudinary";
+import {
   cleanOptional,
   cleanText,
   cleanUrl,
@@ -31,14 +35,12 @@ export const get = query({
         s?.deliveryInformation ?? DEFAULT_SETTINGS.deliveryInformation,
       seoTitle: s?.seoTitle ?? DEFAULT_SETTINGS.seoTitle,
       seoDescription: s?.seoDescription ?? DEFAULT_SETTINGS.seoDescription,
-      logoStorageId: s?.logoStorageId ?? null,
-      logoUrl: s?.logoStorageId ? await ctx.storage.getUrl(s.logoStorageId) : null,
-      heroImages: await Promise.all(
-        heroImageIds(s).map(async (storageId) => ({
-          storageId,
-          url: await ctx.storage.getUrl(storageId),
-        })),
-      ),
+      logoPublicId: s?.logoPublicId ?? null,
+      logoUrl: s?.logoPublicId ? cloudinaryUrl(s.logoPublicId) : null,
+      heroImages: heroImageIds(s).map((publicId) => ({
+        publicId,
+        url: cloudinaryUrl(publicId),
+      })),
       updatedAt: s?.updatedAt ?? null,
     };
   },
@@ -59,33 +61,25 @@ export const update = mutation({
     deliveryInformation: v.optional(v.string()),
     seoTitle: v.optional(v.string()),
     seoDescription: v.optional(v.string()),
-    logoStorageId: v.optional(v.id("_storage")),
-    heroImageStorageIds: v.array(v.id("_storage")),
+    logoPublicId: v.optional(v.string()),
+    heroImagePublicIds: v.array(v.string()),
   },
   handler: async (ctx, { sessionToken, ...input }) => {
     await requireAdmin(ctx, sessionToken);
     const existing = await ctx.db.query("settings").first();
 
-    if (input.logoStorageId && input.logoStorageId !== existing?.logoStorageId) {
-      await assertImageUpload(ctx, input.logoStorageId);
-    }
+    if (input.logoPublicId) assertPublicId(input.logoPublicId);
 
-    const heroIds = [...new Set(input.heroImageStorageIds)];
+    const heroIds = [...new Set(input.heroImagePublicIds)].map(assertPublicId);
     if (heroIds.length > HERO_IMAGE_LIMIT) {
       throw new ConvexError(`Add at most ${HERO_IMAGE_LIMIT} hero photos.`);
     }
-    const previousHeroIds = heroImageIds(existing);
-    for (const id of heroIds) {
-      if (!previousHeroIds.includes(id)) await assertImageUpload(ctx, id);
+    // Replaced images are deleted from Cloudinary once this save commits.
+    const removed = heroImageIds(existing).filter((id) => !heroIds.includes(id));
+    if (existing?.logoPublicId && existing.logoPublicId !== input.logoPublicId) {
+      removed.push(existing.logoPublicId);
     }
-
-    // Delete replaced files only after every new upload has been validated.
-    if (existing?.logoStorageId && existing.logoStorageId !== input.logoStorageId) {
-      await ctx.storage.delete(existing.logoStorageId);
-    }
-    for (const id of previousHeroIds) {
-      if (!heroIds.includes(id)) await ctx.storage.delete(id);
-    }
+    await scheduleImageDeletion(ctx, removed);
 
     const email = cleanOptional(input.contactEmail, "Contact email", 120);
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -112,8 +106,8 @@ export const update = mutation({
       ),
       seoTitle: cleanOptional(input.seoTitle, "SEO title", 120),
       seoDescription: cleanOptional(input.seoDescription, "SEO description", 300),
-      logoStorageId: input.logoStorageId,
-      heroImageStorageIds: heroIds,
+      logoPublicId: input.logoPublicId,
+      heroImagePublicIds: heroIds,
       updatedAt: Date.now(),
     };
     if (existing) {

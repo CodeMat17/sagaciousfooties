@@ -1,5 +1,6 @@
 import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
+import { cloudinaryUrl } from "./cloudinary";
 
 export const DEFAULT_SETTINGS = {
   businessName: "Sagacious Footies",
@@ -16,38 +17,32 @@ export const DEFAULT_SETTINGS = {
 
 export const HERO_IMAGE_LIMIT = 5;
 
-/** Hero photo ids in display order, including the legacy single-photo field. */
+/** Hero photo public IDs in display order. */
 export function heroImageIds(
-  settings: Pick<Doc<"settings">, "heroImageStorageId" | "heroImageStorageIds"> | null,
-) {
-  if (!settings) return [];
-  if (settings.heroImageStorageIds) return settings.heroImageStorageIds;
-  return settings.heroImageStorageId ? [settings.heroImageStorageId] : [];
+  settings: Pick<Doc<"settings">, "heroImagePublicIds"> | null,
+): string[] {
+  return settings?.heroImagePublicIds ?? [];
 }
 
 export function isProductAvailable(product: Pick<Doc<"products">, "sizes">) {
   return product.sizes.some((s) => s.availability === "available");
 }
 
-export async function resolveImages(
-  ctx: QueryCtx,
+export function resolveImages(
   images: Doc<"products">["images"],
   limit?: number,
 ) {
   const subset = limit === undefined ? images : images.slice(0, limit);
-  const resolved = await Promise.all(
-    subset.map(async (image) => {
-      const url = await ctx.storage.getUrl(image.storageId);
-      return url ? { url, alt: image.alt } : null;
-    }),
-  );
+  const resolved = subset.map((image) => {
+    const url = cloudinaryUrl(image.publicId);
+    return url ? { url, alt: image.alt } : null;
+  });
   return resolved.filter(
     (image): image is { url: string; alt: string } => image !== null,
   );
 }
 
-export async function presentProductCard(
-  ctx: QueryCtx,
+export function presentProductCard(
   product: Doc<"products">,
   categories: Map<string, Doc<"categories">>,
 ) {
@@ -63,7 +58,7 @@ export async function presentProductCard(
       category && category.published
         ? { name: category.name, slug: category.slug }
         : null,
-    images: await resolveImages(ctx, product.images, 2),
+    images: resolveImages(product.images, 2),
     sizes: product.sizes,
     available: isProductAvailable(product),
     featured: product.featured,

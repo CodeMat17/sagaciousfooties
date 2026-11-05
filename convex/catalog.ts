@@ -7,6 +7,7 @@ import {
   presentProductCard,
   resolveImages,
 } from "./lib/present";
+import { cloudinaryUrl } from "./lib/cloudinary";
 
 /** All published products, newest first, as lightweight card data. */
 export const listPublished = query({
@@ -20,9 +21,7 @@ export const listPublished = query({
       loadCategoryMap(ctx),
     ]);
     products.sort((a, b) => b.createdAt - a.createdAt);
-    return Promise.all(
-      products.map((p) => presentProductCard(ctx, p, categories)),
-    );
+    return products.map((p) => presentProductCard(p, categories));
   },
 });
 
@@ -49,7 +48,7 @@ export const getBySlug = query({
         category && category.published
           ? { _id: category._id, name: category.name, slug: category.slug }
           : null,
-      images: await resolveImages(ctx, product.images),
+      images: resolveImages(product.images),
       sizes: [...product.sizes].sort((a, b) => a.size - b.size),
       available: isProductAvailable(product),
       featured: product.featured,
@@ -95,9 +94,7 @@ export const listRelated = query({
         Number(isProductAvailable(b)) - Number(isProductAvailable(a)) ||
         b.createdAt - a.createdAt,
     );
-    return Promise.all(
-      picks.slice(0, max).map((p) => presentProductCard(ctx, p, categories)),
-    );
+    return picks.slice(0, max).map((p) => presentProductCard(p, categories));
   },
 });
 
@@ -128,7 +125,7 @@ export const getSelectionProducts = query({
         results.push({ requestedId, product: null });
         continue;
       }
-      const [image] = await resolveImages(ctx, product.images, 1);
+      const [image] = resolveImages(product.images, 1);
       results.push({
         requestedId,
         product: {
@@ -164,13 +161,13 @@ export const listCategories = query({
         const inCategory = products.filter(
           (p) => p.categoryId === category._id,
         );
-        let imageUrl = category.imageStorageId
-          ? await ctx.storage.getUrl(category.imageStorageId)
+        let imageUrl = category.imagePublicId
+          ? cloudinaryUrl(category.imagePublicId)
           : null;
         if (!imageUrl) {
           const withImage = inCategory.find((p) => p.images.length > 0);
           imageUrl = withImage
-            ? await ctx.storage.getUrl(withImage.images[0].storageId)
+            ? cloudinaryUrl(withImage.images[0].publicId)
             : null;
         }
         return {
@@ -194,8 +191,8 @@ export const getCategoryBySlug = query({
       .withIndex("by_slug", (q) => q.eq("slug", slug))
       .first();
     if (!category || !category.published) return null;
-    const imageUrl = category.imageStorageId
-      ? await ctx.storage.getUrl(category.imageStorageId)
+    const imageUrl = category.imagePublicId
+      ? cloudinaryUrl(category.imagePublicId)
       : null;
     return {
       _id: category._id,
@@ -226,7 +223,7 @@ async function firstCategoryProductImage(
     (a, b) => Number(b.featured) - Number(a.featured) || b.createdAt - a.createdAt,
   );
   for (const product of products) {
-    const [image] = await resolveImages(ctx, product.images, 1);
+    const [image] = resolveImages(product.images, 1);
     if (image) return { url: image.url, alt: image.alt || product.name };
   }
   return null;

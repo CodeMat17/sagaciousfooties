@@ -1,14 +1,6 @@
 import { ConvexError } from "convex/values";
 import type { Id } from "../_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "../_generated/server";
-
-export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-export const ALLOWED_IMAGE_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/avif",
-];
+import type { QueryCtx } from "../_generated/server";
 
 export function slugify(value: string): string {
   return value
@@ -109,25 +101,6 @@ export function normalizeWhatsappNumber(value: string): string {
     );
   }
   return digits;
-}
-
-/** Verifies an uploaded file is a reasonably sized image. */
-export async function assertImageUpload(
-  ctx: MutationCtx,
-  storageId: Id<"_storage">,
-): Promise<void> {
-  const meta = await ctx.db.system.get(storageId);
-  if (!meta) {
-    throw new ConvexError("Uploaded image could not be found. Please retry.");
-  }
-  if (!meta.contentType || !ALLOWED_IMAGE_TYPES.includes(meta.contentType)) {
-    await ctx.storage.delete(storageId);
-    throw new ConvexError("Images must be JPEG, PNG, WebP or AVIF.");
-  }
-  if (meta.size > MAX_IMAGE_BYTES) {
-    await ctx.storage.delete(storageId);
-    throw new ConvexError("Images must be 8 MB or smaller.");
-  }
 }
 
 export async function ensureUniqueProductSlug(

@@ -36,7 +36,7 @@ import { errorMessage, useAdminToken } from "./admin-session";
 import { IMAGE_ACCEPT, useImageUpload } from "./use-image-upload";
 
 type Availability = "available" | "sold_out";
-type FormImage = { storageId: Id<"_storage">; alt: string; url: string | null };
+type FormImage = { publicId: string; alt: string; url: string | null };
 type FormSize = { size: number; availability: Availability };
 
 export type ProductFormValues = {
@@ -103,7 +103,9 @@ export function ProductForm({
   const fileInput = useRef<HTMLInputElement>(null);
 
   const [values, setValues] = useState<ProductFormValues>(initial ?? EMPTY);
-  const [slugEdited, setSlugEdited] = useState(Boolean(initial));
+  // Slug is generated from the name for new products and frozen once saved,
+  // so existing store links never break.
+  const slugLocked = Boolean(initial);
   const [newSize, setNewSize] = useState("");
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof ProductFormValues, string>>>({});
@@ -122,12 +124,12 @@ export function ProductForm({
     const list = Array.from(files).slice(0, 12 - values.images.length);
     for (const file of list) {
       try {
-        const storageId = await upload(file);
-        uploadedThisSession.current.add(storageId);
+        const publicId = await upload(file);
+        uploadedThisSession.current.add(publicId);
         const url = URL.createObjectURL(file);
         setValues((v) => ({
           ...v,
-          images: [...v.images, { storageId, alt: v.name, url }],
+          images: [...v.images, { publicId, alt: v.name, url }],
         }));
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Upload failed");
@@ -149,8 +151,8 @@ export function ProductForm({
   function removeImage(index: number) {
     const image = values.images[index];
     setValues((v) => ({ ...v, images: v.images.filter((_, i) => i !== index) }));
-    if (uploadedThisSession.current.has(image.storageId)) {
-      void discard({ sessionToken: token, storageId: image.storageId });
+    if (uploadedThisSession.current.has(image.publicId)) {
+      void discard({ sessionToken: token, publicId: image.publicId });
     }
   }
 
@@ -168,7 +170,7 @@ export function ProductForm({
   function validate(): boolean {
     const next: typeof errors = {};
     if (values.name.trim().length < 2) next.name = "Enter a product name.";
-    if (slugify(values.slug).length < 2) next.slug = "Enter a valid slug.";
+    if (slugify(values.slug).length < 2) next.slug = "The name needs letters or numbers to generate a URL.";
     const price = Number(values.price.replace(/[,\s₦]/g, ""));
     if (!Number.isInteger(price) || price <= 0)
       next.price = "Enter a whole naira amount, e.g. 18000.";
@@ -196,7 +198,7 @@ export function ProductForm({
       categoryId: values.categoryId,
       audience: values.audience,
       images: values.images.map((i) => ({
-        storageId: i.storageId,
+        publicId: i.publicId,
         alt: i.alt.trim() || values.name,
       })),
       sizes: values.sizes,
@@ -210,8 +212,18 @@ export function ProductForm({
         toast.success("Saved — live on the store now.");
       } else {
         const id = await create(payload);
-        toast.success("Product created.");
-        router.replace(`/admin/products/${id}`);
+        toast.success(`“${values.name.trim()}” created.`, {
+          action: { label: "Edit", onClick: () => router.push(`/admin/products/${id}`) },
+        });
+        // Start a fresh form for the next product, keeping the chosen category.
+        for (const image of values.images) {
+          if (image.url?.startsWith("blob:")) URL.revokeObjectURL(image.url);
+        }
+        setValues({ ...EMPTY, categoryId: values.categoryId });
+        setErrors({});
+        setNewSize("");
+        if (fileInput.current) fileInput.current.value = "";
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
       uploadedThisSession.current.clear();
     } catch (error) {
@@ -264,7 +276,7 @@ export function ProductForm({
                 value={values.name}
                 onChange={(e) => {
                   const name = e.target.value;
-                  setValues((v) => ({ ...v, name, slug: slugEdited ? v.slug : slugify(name) }));
+                  setValues((v) => ({ ...v, name, slug: slugLocked ? v.slug : slugify(name) }));
                 }}
                 placeholder="e.g. The Aba Classic"
                 aria-invalid={!!errors.name || undefined}
@@ -275,19 +287,19 @@ export function ProductForm({
               label="URL slug"
               htmlFor="slug"
               error={errors.slug}
-              hint={`sagaciousfooties…/shop/${slugify(values.slug) || "your-design"}`}
+              hint={
+                slugLocked
+                  ? `sagaciousfooties…/shop/${values.slug} · fixed after creation so links keep working`
+                  : `Generated from the name · sagaciousfooties…/shop/${values.slug || "your-design"}`
+              }
             >
-              <Input
+              <output
                 id="slug"
-                value={values.slug}
-                onChange={(e) => {
-                  setSlugEdited(true);
-                  set("slug", e.target.value);
-                }}
-                onBlur={() => set("slug", slugify(values.slug))}
-                aria-invalid={!!errors.slug || undefined}
-                className="h-11 bg-background font-mono text-sm"
-              />
+                data-invalid={!!errors.slug || undefined}
+                className="flex h-11 w-full select-all items-center truncate rounded-lg border border-dashed border-input bg-muted/60 px-2.5 font-mono text-sm text-muted-foreground data-invalid:border-destructive"
+              >
+                {values.slug || "your-design"}
+              </output>
             </Field>
             <Field label="Short description" htmlFor="short" hint="One line shown on cards and in shared links.">
               <Input
@@ -317,7 +329,7 @@ export function ProductForm({
           >
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {values.images.map((image, index) => (
-                <li key={image.storageId} className="overflow-hidden rounded-md border bg-background">
+                <li key={image.publicId} className="overflow-hidden rounded-md border bg-background">
                   <div className="relative aspect-4/5 bg-muted">
                     {image.url && (
                       <Image src={image.url} alt="" fill sizes="200px" className="object-cover" unoptimized={image.url.startsWith("blob:")} />

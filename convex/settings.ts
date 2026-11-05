@@ -1,4 +1,5 @@
 import { query } from "./_generated/server";
+import { cloudinaryUrl } from "./lib/cloudinary";
 import { DEFAULT_SETTINGS, heroImageIds } from "./lib/present";
 
 /** Public store settings. Only fields intended for display are returned. */
@@ -6,14 +7,12 @@ export const getPublic = query({
   args: {},
   handler: async (ctx) => {
     const settings = await ctx.db.query("settings").first();
-    const logoUrl = settings?.logoStorageId
-      ? await ctx.storage.getUrl(settings.logoStorageId)
+    const logoUrl = settings?.logoPublicId
+      ? cloudinaryUrl(settings.logoPublicId)
       : null;
-    const heroImageUrls = (
-      await Promise.all(
-        heroImageIds(settings).map((id) => ctx.storage.getUrl(id)),
-      )
-    ).filter((url): url is string => url !== null);
+    const heroImageUrls = heroImageIds(settings)
+      .map((id) => cloudinaryUrl(id))
+      .filter((url): url is string => url !== null);
     return {
       businessName: settings?.businessName ?? DEFAULT_SETTINGS.businessName,
       tagline: settings?.tagline ?? DEFAULT_SETTINGS.tagline,

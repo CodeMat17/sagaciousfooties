@@ -10,9 +10,8 @@ const nextConfig: NextConfig = {
   htmlLimitedBots: /.*/,
   images: {
     remotePatterns: [
-      // Convex file storage (product, category, logo and hero images).
-      { protocol: "https", hostname: "*.convex.cloud" },
-      { protocol: "https", hostname: "*.convex.site" },
+      // Cloudinary (product, category, logo and hero images).
+      { protocol: "https", hostname: "res.cloudinary.com" },
     ],
     formats: ["image/avif", "image/webp"],
   },
